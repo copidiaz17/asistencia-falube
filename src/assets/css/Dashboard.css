@@ -362,8 +362,8 @@ img { max-width: 100%; height: auto; }
 @media (max-width: 700px) {
   .sidebar {
     position: fixed;
-    top: 0; left: 0;
-    height: 100%;
+    top: 76px; left: 0;
+    height: calc(100% - 76px);
     z-index: 75;
     transform: translateX(-100%);
   }
