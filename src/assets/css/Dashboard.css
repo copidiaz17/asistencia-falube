@@ -372,5 +372,5 @@ img { max-width: 100%; height: auto; }
   .hamburger { display: block; }
   .main-content { flex-direction: column; }
   .panel-central { padding: 12px; }
-  .user-profile-widget { display: none; }
+  .welcome-text, .user-name { display: none; }
 }
