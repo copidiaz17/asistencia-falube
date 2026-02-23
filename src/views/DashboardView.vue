@@ -39,23 +39,23 @@
 
     <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
 
-    <aside :class="['sidebar', { open: sidebarOpen }]">
-      <h2 class="sidebar-title">Obras</h2>
-      <ul class="obra-list">
-        <li
-          v-for="obra in obras"
-          :key="obra.id"
-          :class="{ selected: obra.id == obraActiva }"
-          @click="seleccionarObra(obra.id)"
-        >
-          <span class="icon">🏗</span>
-          <span class="obra-nombre">{{ obra.nombre }}</span>
-          <div v-if="obra.id == obraActiva" class="active-indicator"></div>
-        </li>
-      </ul>
-    </aside>
-
     <div class="main-content">
+      <aside :class="['sidebar', { open: sidebarOpen }]">
+        <h2 class="sidebar-title">Obras</h2>
+        <ul class="obra-list">
+          <li
+            v-for="obra in obras"
+            :key="obra.id"
+            :class="{ selected: obra.id == obraActiva }"
+            @click="seleccionarObra(obra.id)"
+          >
+            <span class="icon">🏗</span>
+            <span class="obra-nombre">{{ obra.nombre }}</span>
+            <div v-if="obra.id == obraActiva" class="active-indicator"></div>
+          </li>
+        </ul>
+      </aside>
+
       <main class="panel-central">
         <router-view />
       </main>
