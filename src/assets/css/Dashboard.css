@@ -150,19 +150,24 @@ img { max-width: 100%; height: auto; }
   display: flex;
   flex: 1;
   overflow: hidden;
+  margin-left: 220px;
 }
 
 /* =======================
    SIDEBAR
 ======================= */
 .sidebar {
+  position: fixed;
+  top: 76px;
+  left: 0;
   width: 220px;
-  min-width: 220px;
+  height: calc(100vh - 76px);
   background-color: #1a1a1a;
   border-right: 1px solid #333;
   overflow-y: auto;
   padding: 12px 0;
   transition: transform 0.25s ease;
+  z-index: 75;
 }
 
 .sidebar-title {
@@ -361,16 +366,12 @@ img { max-width: 100%; height: auto; }
 ======================= */
 @media (max-width: 700px) {
   .sidebar {
-    position: fixed;
-    top: 76px; left: 0;
-    height: calc(100% - 76px);
-    z-index: 75;
     transform: translateX(-100%);
   }
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay { display: block; }
   .hamburger { display: block; }
-  .main-content { flex-direction: column; }
+  .main-content { margin-left: 0; flex-direction: column; }
   .panel-central { padding: 12px; }
   .welcome-text, .user-name { display: none; }
 }
