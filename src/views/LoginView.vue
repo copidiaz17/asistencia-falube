@@ -14,7 +14,9 @@
           <input v-model="password" type="password" placeholder="Contraseña" required />
         </div>
 
-        <button type="submit" class="btn-submit">Ingresar</button>
+        <button type="submit" class="btn-submit" :disabled="loading">
+          {{ loading ? "Conectando..." : "Ingresar" }}
+        </button>
 
         <p v-if="error" class="error">{{ error }}</p>
       </form>
@@ -47,7 +49,12 @@ export default {
 
         this.$router.push({ name: "Dashboard" });
       } catch (err) {
-        this.error = err?.response?.data?.message || err?.message || "Error al iniciar sesión";
+        const isTimeout = err.code === "ECONNABORTED" || err?.message?.includes("timeout");
+        if (isTimeout) {
+          this.error = "El servidor tardó en responder. Intentá de nuevo en unos segundos.";
+        } else {
+          this.error = err?.response?.data?.message || "Error al iniciar sesión";
+        }
       } finally {
         this.loading = false;
       }
