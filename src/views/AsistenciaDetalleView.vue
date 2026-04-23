@@ -6,13 +6,45 @@
           <h1 class="titulo-pagina">Detalle de Asistencia</h1>
           <p class="text-muted mb-3">Fecha: <strong class="fecha-highlight">{{ formatDate(fecha) }}</strong></p>
         </div>
-        <button
-          v-if="authStore.canModify && esHoy"
-          class="btn-primary btn-warning"
-          @click="editarAsistencia"
-        >
-          Editar Asistencia
-        </button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <!-- Botón editar asistencia completa (hoy, para operadores y admin) -->
+          <button
+            v-if="authStore.canModify && esHoy && !modoEdicion"
+            class="btn-primary btn-warning"
+            @click="editarAsistencia"
+          >
+            Editar Asistencia
+          </button>
+          <!-- Botón editar horarios inline (cualquier fecha, solo admin@admin.com) -->
+          <button
+            v-if="esAdmin && !modoEdicion && empleados.length > 0"
+            class="btn-primary btn-editar-horario"
+            @click="activarEdicion"
+          >
+            ✏️ Editar horarios
+          </button>
+          <!-- Botones de modo edición -->
+          <button
+            v-if="modoEdicion"
+            class="btn-primary btn-guardar"
+            :disabled="guardando"
+            @click="guardarHorarios"
+          >
+            {{ guardando ? 'Guardando...' : '💾 Guardar cambios' }}
+          </button>
+          <button
+            v-if="modoEdicion"
+            class="btn-primary btn-cancelar"
+            :disabled="guardando"
+            @click="cancelarEdicion"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+
+      <div v-if="modoEdicion" class="aviso-edicion">
+        ✏️ Modo edición — modificá los horarios de ingreso y salida para cada empleado presente.
       </div>
 
       <div v-if="cargando" class="text-muted">Cargando...</div>
@@ -57,8 +89,32 @@
                     {{ emp.presente ? "Sí" : "No" }}
                   </span>
                 </td>
-                <td style="text-align:center;">{{ emp.presente && emp.horarioIngreso ? formatHora(emp.horarioIngreso) : "—" }}</td>
-                <td style="text-align:center;">{{ emp.presente && emp.horarioSalida ? formatHora(emp.horarioSalida) : "—" }}</td>
+                <!-- H. Ingreso -->
+                <td style="text-align:center;">
+                  <template v-if="modoEdicion && emp.presente">
+                    <input
+                      type="time"
+                      class="input-hora"
+                      v-model="editData[emp.id].horarioIngreso"
+                    />
+                  </template>
+                  <template v-else>
+                    {{ emp.presente && emp.horarioIngreso ? formatHora(emp.horarioIngreso) : "—" }}
+                  </template>
+                </td>
+                <!-- H. Salida -->
+                <td style="text-align:center;">
+                  <template v-if="modoEdicion && emp.presente">
+                    <input
+                      type="time"
+                      class="input-hora"
+                      v-model="editData[emp.id].horarioSalida"
+                    />
+                  </template>
+                  <template v-else>
+                    {{ emp.presente && emp.horarioSalida ? formatHora(emp.horarioSalida) : "—" }}
+                  </template>
+                </td>
                 <td>{{ emp.observacion || "—" }}</td>
               </tr>
             </tbody>
@@ -67,6 +123,7 @@
       </template>
 
       <p v-if="error" class="alert error mt-2">{{ error }}</p>
+      <p v-if="exito" class="alert exito mt-2">{{ exito }}</p>
 
       <button
         type="button"
@@ -95,7 +152,11 @@ export default {
     return {
       empleados: [],
       cargando: false,
+      guardando: false,
       error: "",
+      exito: "",
+      modoEdicion: false,
+      editData: {},
     };
   },
   computed: {
@@ -105,6 +166,9 @@ export default {
     esHoy() {
       const hoy = new Date().toISOString().split("T")[0];
       return this.fecha === hoy;
+    },
+    esAdmin() {
+      return this.authStore.user?.email === "admin@admin.com";
     },
   },
   methods: {
@@ -123,6 +187,52 @@ export default {
         params: { obraId: this.obraId },
         query: { fecha: this.fecha },
       });
+    },
+    activarEdicion() {
+      this.error = "";
+      this.exito = "";
+      // Inicializar editData con los valores actuales de cada empleado presente
+      const data = {};
+      for (const emp of this.empleados) {
+        if (emp.presente) {
+          data[emp.id] = {
+            horarioIngreso: emp.horarioIngreso ? emp.horarioIngreso.substring(0, 5) : "",
+            horarioSalida:  emp.horarioSalida  ? emp.horarioSalida.substring(0, 5)  : "",
+          };
+        }
+      }
+      this.editData = data;
+      this.modoEdicion = true;
+    },
+    cancelarEdicion() {
+      this.modoEdicion = false;
+      this.editData = {};
+      this.error = "";
+    },
+    async guardarHorarios() {
+      this.guardando = true;
+      this.error = "";
+      this.exito = "";
+      try {
+        const registros = Object.entries(this.editData).map(([empleadoId, h]) => ({
+          empleadoId: Number(empleadoId),
+          horarioIngreso: h.horarioIngreso || null,
+          horarioSalida:  h.horarioSalida  || null,
+        }));
+        await api.patch(`/obras/${this.obraId}/asistencia/editar-horario`, {
+          fecha: this.fecha,
+          registros,
+        });
+        this.modoEdicion = false;
+        this.editData = {};
+        this.exito = "Horarios actualizados correctamente.";
+        await this.cargarDetalle();
+        setTimeout(() => { this.exito = ""; }, 3000);
+      } catch (err) {
+        this.error = err.response?.data?.error || "Error al guardar los horarios.";
+      } finally {
+        this.guardando = false;
+      }
     },
     async cargarDetalle() {
       this.cargando = true;
@@ -167,6 +277,70 @@ export default {
   font-size: 0.95rem;
 }
 
+.aviso-edicion {
+  background: #1e3a5f;
+  color: #93c5fd;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  margin-bottom: 12px;
+}
+
+.input-hora {
+  background: #1f2937;
+  color: #f9fafb;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+  width: 100px;
+  text-align: center;
+}
+.input-hora:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96,165,250,0.3);
+}
+
+.btn-editar-horario {
+  background: #1e3a5f;
+  color: #93c5fd;
+  border: 1px solid #2563eb;
+}
+.btn-editar-horario:hover { background: #1e40af; }
+
+.btn-guardar {
+  background: #064e3b;
+  color: #6ee7b7;
+  border: 1px solid #059669;
+}
+.btn-guardar:hover { background: #065f46; }
+.btn-guardar:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-cancelar {
+  background: #374151;
+  color: #d1d5db;
+  border: 1px solid #4b5563;
+}
+.btn-cancelar:hover { background: #4b5563; }
+.btn-cancelar:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.alert.exito {
+  background: #064e3b;
+  color: #6ee7b7;
+  border: 1px solid #059669;
+  border-radius: 6px;
+  padding: 8px 14px;
+}
+.alert.error {
+  background: #4c1d1d;
+  color: #fca5a5;
+  border: 1px solid #dc2626;
+  border-radius: 6px;
+  padding: 8px 14px;
+}
+
 .badge-presente {
   background: #064e3b;
   color: #6ee7b7;
@@ -175,7 +349,6 @@ export default {
   font-size: 0.82rem;
   font-weight: 700;
 }
-
 .badge-ausente {
   background: #4c1d1d;
   color: #fca5a5;
@@ -184,7 +357,6 @@ export default {
   font-size: 0.82rem;
   font-weight: 700;
 }
-
 .badge-cat {
   display: inline-block;
   padding: 2px 8px;
